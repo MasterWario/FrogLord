@@ -148,10 +148,10 @@ public class MAPController extends EditorController<MAPFile> {
 
     @FXML
     private void makeNewMap(ActionEvent event) {
-        InputMenu.promptInput("Please enter the grid dimensions for the cleared map.", "5,5", newText -> {
+        InputMenu.promptInput("Please enter the grid dimensions for the cleared map. Last number is 1 if everything should be erased", "5,5,1", newText -> {
             String[] split = newText.split(",");
-            if (split.length != 2) {
-                Utils.makePopUp("'" + newText + "' was invalid.\nPlease enter two numbers separated by a comma.", AlertType.ERROR);
+            if (split.length != 3) {
+                Utils.makePopUp("'" + newText + "' was invalid.\nPlease enter three numbers separated by a comma.", AlertType.ERROR);
                 return;
             }
 
@@ -177,7 +177,12 @@ public class MAPController extends EditorController<MAPFile> {
                 return;
             }
 
-            getFile().randomizeMap(x, z);
+            boolean erase = false;
+            if ("1".equals(split[2])) {
+                erase = true;
+            }
+
+            getFile().randomizeMap(x, z, erase);
         });
     }
 

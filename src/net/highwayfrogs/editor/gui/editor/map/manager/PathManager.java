@@ -290,6 +290,21 @@ public class PathManager extends MapManager {
         });
 
         if (this.selectedPath != null) {
+            // Creates a clone of this path. Useful in conjunction with the "Move All" control
+            this.pathEditor.addLabelButton("", "Copy Path", 25.0, () -> {
+                Path newPath = new Path();
+                for (PathSegment s : this.selectedPath.getSegments()) {
+                    PathSegment newSegment = s.getType().makeNew(newPath);
+                    s.copyTo(newSegment);
+                    newPath.getSegments().add(newSegment);
+                }
+
+                // Adds copied path.
+                getMap().getPaths().add(newPath);
+                setSelectedPath(newPath);
+                setupEditor();
+            });
+
             this.pathEditor.addLabelButton("", "Remove Path", 25.0, () -> {
                 int pathIndex = getMap().getPaths().indexOf(this.selectedPath);
                 for (Entity entity : getMap().getEntities()) {
@@ -302,6 +317,17 @@ public class PathManager extends MapManager {
                 // Remove path.
                 getMap().removePath(this.selectedPath);
                 setSelectedPath(null);
+                setupEditor();
+            });
+
+            // Run the Flip method on every single segment in this path, and also reverses the segment order
+            this.pathEditor.addLabelButton("","Flip All Segments", 25.0, () -> {
+                List<PathSegment> flippedSegments = new ArrayList<>();
+                for (int i = this.selectedPath.getSegments().size() - 1; i >= 0; i--) {
+                    this.selectedPath.getSegments().get(i).flip(getController());
+                    flippedSegments.add(this.selectedPath.getSegments().get(i));
+                }
+                this.selectedPath.setSegments(flippedSegments);
                 setupEditor();
             });
 

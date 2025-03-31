@@ -37,8 +37,8 @@ public class SVector extends GameObject implements Vector {
 
     public SVector(int x, int y, int z) {
         setX((short) x);
-        setX((short) y);
-        setX((short) z);
+        setY((short) y);
+        setZ((short) z);
     }
 
     public SVector(float x, float y, float z) {

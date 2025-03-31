@@ -1024,26 +1024,30 @@ public class MAPFile extends GameFile {
     /**
      * Procedurally generate an empty map, making it easier to start from scratch on a map you'd like to make in Blender.
      */
-    public void randomizeMap(final int xTileCount, final int zTileCount) {
+    public void randomizeMap(final int xTileCount, final int zTileCount, boolean erase) {
         this.startRotation = StartRotation.NORTH;
         this.levelTimer = 99;
         this.cameraSourceOffset.loadFromFloatText("0, -50, -3");
         this.cameraTargetOffset.loadFromFloatText("0.0, 0.0, 0.0");
 
-        this.paths.clear();
-        this.zones.clear();
-        this.forms.clear();
-        this.entities.clear();
-        this.lights.clear();
-        this.vertexes.clear();
         this.gridStacks.clear();
-        this.mapAnimations.clear();
         this.gridXCount = (short) (xTileCount + 2); // Add two, so we can have a border surrounding the map.
         this.gridZCount = (short) (zTileCount + 2);
         this.startXTile = (short) ((xTileCount / 2) + 1);
         this.startZTile = (short) 1;
 
-        polygons.values().forEach(List::clear); // Clear the list of polygons.
+        // If false, keep the old details of the map. Useful when you do not want to start with a blank slate
+        // The collision grid will only be setup for the new geometry, but you can still use the old geometry when editing (and also paths, entities, etc.)
+        if (erase) {
+            this.paths.clear();
+            this.zones.clear();
+            this.forms.clear();
+            this.entities.clear();
+            this.lights.clear();
+            this.vertexes.clear();
+            this.mapAnimations.clear();
+            polygons.values().forEach(List::clear); // Clear the list of polygons.
+        }
         List<MAPPrimitive> list = polygons.get(MAPPolygonType.F4);
 
         // Create stacks.

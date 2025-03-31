@@ -27,13 +27,41 @@ public class LineSegment extends PathSegment {
     @Override
     public void setupNewSegment(MAPFile map) {
         Path path = getPath();
-        if (path.getSegments().size() > 0) {
+        if (!path.getSegments().isEmpty()) {
             PathSegment lastSegment = path.getSegments().get(path.getSegments().size() - 1);
             this.start = lastSegment.calculatePosition(map, lastSegment.getLength()).getPosition();
         }
 
         this.end = new SVector(this.start).add(new SVector(0, 0, 800));
         onUpdate(null);
+    }
+
+    @Override
+    public void copyTo(PathSegment segment) {
+        if (segment instanceof LineSegment) {
+            LineSegment ls = ((LineSegment) segment);
+            ls.start = new SVector(start);
+            ls.end = new SVector(end);
+            ls.setLength(getLength());
+        }
+    }
+
+    @Override
+    public void moveDelta(SVector delta, MapUIController controller) {
+        start.setX((short) (start.getX() - delta.getX()));
+        start.setY((short) (start.getY() - delta.getY()));
+        start.setZ((short) (start.getZ() - delta.getZ()));
+        end.setX((short) (end.getX() - delta.getX()));
+        end.setY((short) (end.getY() - delta.getY()));
+        end.setZ((short) (end.getZ() - delta.getZ()));
+        onUpdate(controller);
+    }
+
+    public void flip(MapUIController controller) {
+        SVector prevStart = new SVector(start);
+        start = new SVector(end);
+        end = prevStart;
+        onUpdate(controller);
     }
 
     @Override
@@ -55,15 +83,18 @@ public class LineSegment extends PathSegment {
         int deltaZ = end.getZ() - start.getZ();
 
         SVector result = new SVector();
-        result.setX((short) (start.getX() + ((deltaX * info.getSegmentDistance()) / getLength())));
-        result.setY((short) (start.getY() + ((deltaY * info.getSegmentDistance()) / getLength())));
-        result.setZ((short) (start.getZ() + ((deltaZ * info.getSegmentDistance()) / getLength())));
+        if (getLength() != 0) {
+            result.setX((short) (start.getX() + ((deltaX * info.getSegmentDistance()) / getLength())));
+            result.setY((short) (start.getY() + ((deltaY * info.getSegmentDistance()) / getLength())));
+            result.setZ((short) (start.getZ() + ((deltaZ * info.getSegmentDistance()) / getLength())));
+        }
         return new PathResult(result, new IVector(deltaX, deltaY, deltaZ).normalise());
     }
 
     @Override
     public void setupEditor(MapUIController controller, GUIEditorGrid editor) {
         super.setupEditor(controller, editor);
+        editor.addButton("Flip", () -> flip(controller));
         editor.addFloatVector("Start:", getStart(), () -> onUpdate(controller), controller);
         editor.addFloatVector("End:", getEnd(), () -> onUpdate(controller), controller);
     }

@@ -1,11 +1,13 @@
 package net.highwayfrogs.editor.file.map.path;
 
 import lombok.Getter;
+import lombok.Setter;
 import net.highwayfrogs.editor.Constants;
 import net.highwayfrogs.editor.file.GameObject;
 import net.highwayfrogs.editor.file.map.MAPFile;
 import net.highwayfrogs.editor.file.map.entity.Entity;
 import net.highwayfrogs.editor.file.reader.DataReader;
+import net.highwayfrogs.editor.file.standard.SVector;
 import net.highwayfrogs.editor.file.writer.DataWriter;
 import net.highwayfrogs.editor.gui.GUIEditorGrid;
 import net.highwayfrogs.editor.gui.editor.map.manager.PathManager;
@@ -21,8 +23,12 @@ import java.util.List;
  */
 @Getter
 public class Path extends GameObject {
+    @Setter
     private List<PathSegment> segments = new ArrayList<>();
     private transient int tempEntityIndexPointer;
+    // These variables are used to calculate the delta for the "Move All" control
+    private SVector moveAll = new SVector();
+    private SVector movePrev = new SVector();
 
     @Override
     public void load(DataReader reader) {
@@ -59,11 +65,34 @@ public class Path extends GameObject {
     }
 
     /**
+     * Updates the viewer UI when this segment is updated.
+     */
+    public void onUpdate(PathManager manager) {
+        int xDelta = movePrev.getX() - moveAll.getX();
+        int yDelta = movePrev.getY() - moveAll.getY();
+        int zDelta = movePrev.getZ() - moveAll.getZ();
+        SVector delta = new SVector(xDelta, yDelta, zDelta);
+        for (int i = 0; i < getSegments().size(); i++) {
+            getSegments().get(i).moveDelta(delta, manager.getController());
+        }
+        movePrev = new SVector(moveAll);
+    }
+
+    /**
      * Setup the editor.
      * @param manager The path manager.
      * @param editor  The editor to setup under.
      */
     public void setupEditor(PathManager manager, GUIEditorGrid editor) {
+        // The Move All control allows you to move every path segment all at once
+        // Useful in conjunction with the Copy Path button
+        if (!getSegments().isEmpty()) {
+            moveAll = new SVector(getSegments().get(0).getStartPosition());
+            movePrev = new SVector(getSegments().get(0).getStartPosition());
+            editor.addFloatVector("Move All:", moveAll, () -> onUpdate(manager), manager.getController());
+            editor.addLabelButton("Update text:", "Refresh", 25, manager::setupEditor);
+        }
+
         for (int i = 0; i < getSegments().size(); i++) {
             final int tempIndex = i;
 

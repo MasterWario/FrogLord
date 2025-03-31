@@ -17,7 +17,9 @@ import net.highwayfrogs.editor.gui.GUIEditorGrid;
 public class EntityColorTrigger extends MatrixData {
     private TriggerType type = TriggerType.BEGIN;
     private VolcanoTriggerColor color = VolcanoTriggerColor.RED;
-    private short[] uniqueIds = new short[COLOR_TRIGGER_MAX_IDS];
+    // Any buttons with 0s will crash the game when stepped on, because no entity with id 0 exists
+    // So initialize to -1 instead, the value for no unique id
+    private short[] uniqueIds = {-1, -1, -1, -1, -1, -1, -1, -1, -1 ,-1};
 
     private static final int COLOR_TRIGGER_MAX_IDS = 10;
 

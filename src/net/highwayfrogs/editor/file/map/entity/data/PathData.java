@@ -1,5 +1,6 @@
 package net.highwayfrogs.editor.file.map.entity.data;
 
+import javafx.scene.control.Button;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.util.converter.NumberStringConverter;
@@ -24,6 +25,9 @@ import java.text.DecimalFormat;
 @Setter
 public class PathData extends EntityData {
     private PathInfo pathInfo = new PathInfo();
+    // static thread to make sure only one is ever active at a time
+    static Thread playPath = null;
+    double lastValue = -1;
 
     @Override
     public void load(DataReader reader) {
@@ -72,6 +76,43 @@ public class PathData extends EntityData {
                         manager.showEntityInfo(getParentEntity()); // Update the entity editor display, update path slider, etc.
                     }, null));
         }
+
+        // The play button will move the entity across the chosen path to simulate how it might look in-game
+        // This is a shaky implementation, given it runs on a basic, static thread, and uses busy waiting
+        // It also sometimes seems to freeze unless you hover your mouse over the preview window
+        lastValue = Utils.fixedPointIntToFloat4Bit(getPathInfo().getTotalPathDistance(map));
+        playPath = null;
+        Button playButton = editor.addButton("Play", () -> {});
+        playButton.setOnMouseClicked(evt -> {
+            if (playButton.getText().equals("Play")) {
+                playButton.setText("Stop");
+                if (playPath == null || !playPath.isAlive()) {
+                    playPath = new Thread(() -> {
+                        try {
+                            double val = lastValue;
+                            while (playPath != null && playPath.isAlive()) {
+                                val += (getPathInfo().getSpeed() * 1.0 / 50);
+                                if (val > Utils.fixedPointIntToFloat4Bit(getPathInfo().getPath(getParentEntity().getMap()).getTotalLength())) {
+                                    val = 0;
+                                }
+                                //System.out.println(val);
+                                getPathInfo().setTotalPathDistance(getParentEntity().getMap(), Utils.floatToFixedPointInt4Bit((float) val));
+                                manager.updatePosition(getParentEntity());
+                                Thread.sleep(10);
+                            }
+                        } catch (Exception e) {
+                            // Only one thread at a time
+                        }
+                        getPathInfo().setTotalPathDistance(getParentEntity().getMap(), Utils.floatToFixedPointInt4Bit((float) lastValue));
+                        manager.updatePosition(getParentEntity());
+                    });
+                    playPath.start();
+                }
+            } else {
+                playButton.setText("Play");
+                playPath = null;
+            }
+        });
 
         super.addData(manager, editor); // Path ID comes before the rest.
     }

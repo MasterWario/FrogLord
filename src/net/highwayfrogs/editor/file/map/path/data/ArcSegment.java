@@ -32,6 +32,40 @@ public class ArcSegment extends PathSegment {
     }
 
     @Override
+    public void copyTo(PathSegment segment) {
+        if (segment instanceof ArcSegment) {
+            ArcSegment as = ((ArcSegment) segment);
+            as.start = new SVector(start);
+            as.center = new SVector(center);
+            as.normal = new SVector(normal);
+            as.pitch = pitch;
+            as.distance = distance;
+            as.setLength(getLength());
+        }
+    }
+
+    @Override
+    public void moveDelta(SVector delta, MapUIController controller) {
+        start.setX((short) (start.getX() - delta.getX()));
+        start.setY((short) (start.getY() - delta.getY()));
+        start.setZ((short) (start.getZ() - delta.getZ()));
+        center.setX((short) (center.getX() - delta.getX()));
+        center.setY((short) (center.getY() - delta.getY()));
+        center.setZ((short) (center.getZ() - delta.getZ()));
+        onUpdate(controller);
+    }
+
+    public void flip(MapUIController controller) {
+        SVector prevStart = new SVector(start);
+        SVector prevNormal = new SVector(normal);
+        int distToCenterX = center.getX() - prevStart.getX();
+        int distToCenterZ = center.getZ() - prevStart.getZ();
+        start = new SVector(center.getX() - distToCenterZ, prevStart.getY(), center.getZ() + distToCenterX);
+        normal = new SVector(prevNormal.getX() * -1, prevNormal.getY() * -1, prevNormal.getZ() * -1);
+        onUpdate(controller);
+    }
+
+    @Override
     protected void loadData(DataReader reader) {
         this.start.loadWithPadding(reader);
         this.center.loadWithPadding(reader);
@@ -115,6 +149,8 @@ public class ArcSegment extends PathSegment {
             onUpdate(controller);
         }, 0, 2 * Math.PI);
 
+        editor.addButton("Flip", () -> flip(controller));
+
         editor.addFloatVector("Center:", getCenter(), () -> onUpdate(controller), controller);
         editor.addFloatVector("Start:", getStart(), () -> onUpdate(controller), controller);
         editor.addSVector("Normal:", 12, getNormal(), () -> onUpdate(controller));
@@ -139,7 +175,7 @@ public class ArcSegment extends PathSegment {
     @Override
     public void setupNewSegment(MAPFile map) {
         Path path = getPath();
-        if (path.getSegments().size() > 0) {
+        if (!path.getSegments().isEmpty()) {
             PathSegment lastSegment = path.getSegments().get(path.getSegments().size() - 1);
             this.start = lastSegment.calculatePosition(map, lastSegment.getLength()).getPosition();
         }

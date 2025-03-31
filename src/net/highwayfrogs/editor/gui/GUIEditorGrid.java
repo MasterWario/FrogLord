@@ -17,12 +17,17 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import net.highwayfrogs.editor.Constants;
+import net.highwayfrogs.editor.file.map.grid.GridSquare;
+import net.highwayfrogs.editor.file.map.grid.GridStack;
+import net.highwayfrogs.editor.file.map.poly.polygon.MAPPolygon;
+import net.highwayfrogs.editor.file.map.view.MapMesh;
 import net.highwayfrogs.editor.file.standard.IVector;
 import net.highwayfrogs.editor.file.standard.SVector;
 import net.highwayfrogs.editor.file.standard.Vector;
 import net.highwayfrogs.editor.file.standard.psx.PSXMatrix;
 import net.highwayfrogs.editor.gui.editor.MOFController;
 import net.highwayfrogs.editor.gui.editor.MapUIController;
+import net.highwayfrogs.editor.gui.mesh.MeshData;
 import net.highwayfrogs.editor.utils.Utils;
 
 import java.util.ArrayList;
@@ -490,7 +495,74 @@ public class GUIEditorGrid {
         vecPane.setHgap(10);
         GridPane.setColumnSpan(vecPane, 2); // Make it take up the full space in the grid it will be added to.
         setupNode(vecPane); // Setup this in the new area.
-        addRow(75);
+        addRow(85);
+
+        GridPane vecPane2 = new GridPane();
+        vecPane2.addRow(0);
+
+        // Copy the position so it can be pasted later
+        Button btn = new Button("Copy");
+        btn.setOnMouseClicked(evt -> {
+            if (controller != null) {
+                controller.setCopied(new SVector(vector.getFloatX(bits), vector.getFloatY(bits), vector.getFloatZ(bits)));
+                onPass.run();
+            }
+        });
+
+        vecPane2.addColumn(0, btn);
+
+        // Paste the position that has been previously copied
+        btn = new Button("Paste");
+        btn.setOnMouseClicked(evt -> {
+            if (controller != null && controller.getCopied() != null) {
+                SVector copy = controller.getCopied();
+                vector.setFloatX(copy.getFloatX(), bits);
+                vector.setFloatY(copy.getFloatY(), bits);
+                vector.setFloatZ(copy.getFloatZ(), bits);
+                xField.setText(String.valueOf(vector.getFloatX(bits)));
+                yField.setText(String.valueOf(vector.getFloatY(bits)));
+                zField.setText(String.valueOf(vector.getFloatZ(bits)));
+                onPass.run();
+            }
+        });
+
+        vecPane2.addColumn(1, btn);
+
+        // Relocate the position to whatever polygon is selected
+        btn = new Button("Select");
+        btn.setOnMouseClicked(evt -> {
+            if (controller == null)
+                return;
+
+            // Copied and repurposed from addNewEntity
+            for (GridStack stack : controller.getMap().getGridStacks())
+                for (GridSquare square : stack.getGridSquares())
+                    controller.renderOverPolygon(square.getPolygon(), MapMesh.GENERAL_SELECTION);
+            MeshData data = controller.getMapMesh().getManager().addMesh();
+
+            controller.getGeometryManager().selectPolygon(poly -> {
+                controller.getMapMesh().getManager().removeMesh(data);
+
+                SVector pos = MAPPolygon.getCenterOfPolygon(controller.getMapMesh(), poly);
+
+                vector.setFloatX(pos.getFloatX(), bits);
+                vector.setFloatY(pos.getFloatY(), bits);
+                vector.setFloatZ(pos.getFloatZ(), bits);
+                xField.setText(String.valueOf(vector.getFloatX(bits)));
+                yField.setText(String.valueOf(vector.getFloatY(bits)));
+                zField.setText(String.valueOf(vector.getFloatZ(bits)));
+
+                onPass.run();
+
+            }, () -> controller.getMapMesh().getManager().removeMesh(data));
+        });
+
+        vecPane2.addColumn(2, btn);
+
+        vecPane2.setHgap(10);
+        GridPane.setColumnSpan(vecPane2, 2); // Make it take up the full space in the grid it will be added to.
+        setupNode(vecPane2); // Setup this in the new area.
+        addRow(30);
     }
 
     /**
@@ -961,7 +1033,7 @@ public class GUIEditorGrid {
         slider.setShowTickLabels(true);
         slider.setShowTickMarks(true);
         slider.setMinorTickCount(0);
-        slider.setBlockIncrement(1);
+        slider.setBlockIncrement((maxValue - minValue) / 4);
         addRow(40);
         return slider;
     }

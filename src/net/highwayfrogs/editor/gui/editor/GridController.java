@@ -610,10 +610,12 @@ public class GridController implements Initializable {
     public void handleResize(int newX, int newZ) {
         getMap().resizeGrid(newX, newZ);
         // Update the selected stack.
-        List<GridStack> newStacks = getMap().getGridStacks().containsAll(selectedStacks) ? selectedStacks : null;
-        setSelectedStacks(newStacks);
-        if (newStacks != null)
-            setSelectedSquares(newStacks, this.selectedLayer);
+        if (selectedStacks != null) {
+            List<GridStack> newStacks = getMap().getGridStacks().containsAll(selectedStacks) ? selectedStacks : null;
+            setSelectedStacks(newStacks);
+            if (newStacks != null)
+                setSelectedSquares(newStacks, this.selectedLayer);
+        }
         updateCanvas();
     }
 

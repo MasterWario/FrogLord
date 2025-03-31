@@ -43,6 +43,21 @@ public abstract class PathSegment extends GameObject {
     }
 
     /**
+     * Helper method to copy this segment to a new segment
+     */
+    public abstract void copyTo(PathSegment segment);
+
+    /**
+     * Helper method to move the path according to the delta. Used with the "Move All" control
+     */
+    public abstract void moveDelta(SVector delta, MapUIController controller);
+
+    /**
+     * Helper method to reverse the given segment
+     */
+    public abstract void flip(MapUIController controller);
+
+    /**
      * Setup this segment at the end of the given path.
      */
     public abstract void setupNewSegment(MAPFile map);

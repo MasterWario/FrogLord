@@ -19,6 +19,7 @@ import javafx.scene.shape.MeshView;
 import javafx.stage.Stage;
 import javafx.util.converter.NumberStringConverter;
 import lombok.Getter;
+import lombok.Setter;
 import net.highwayfrogs.editor.file.map.MAPFile;
 import net.highwayfrogs.editor.file.map.poly.polygon.MAPPolygon;
 import net.highwayfrogs.editor.file.map.view.CursorVertexColor;
@@ -53,6 +54,8 @@ public class MapUIController implements Initializable {
 
     private MAPController controller;
     private SubScene subScene;
+    @Setter
+    private SVector copied = null;
 
     // Baseline UI components
     @FXML private AnchorPane anchorPaneUIRoot;

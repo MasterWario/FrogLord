@@ -170,6 +170,10 @@ public class EntityManager extends MapManager {
                 matrix.getTransform()[0] = Utils.floatToFixedPointInt4Bit(pos.getFloatX());
                 matrix.getTransform()[1] = Utils.floatToFixedPointInt4Bit(pos.getFloatY());
                 matrix.getTransform()[2] = Utils.floatToFixedPointInt4Bit(pos.getFloatZ());
+                // Initialize the rotation matrix to a default, upright position
+                matrix.getMatrix()[0][0] = 4096;
+                matrix.getMatrix()[1][1] = 4096;
+                matrix.getMatrix()[2][2] = 4096;
 
                 // Add entity.
                 addEntityToMap(newEntity);
@@ -220,6 +224,27 @@ public class EntityManager extends MapManager {
                 }
             }
         }
+
+        // Not a permanent feature, this code will remove entities with duplicate ids from the map, to help prevent crashes
+        // This code can cause data loss, so make a backup before using
+        /* String test = "Ids in the map: ";
+        HashSet<Integer> testMap = new HashSet<>();
+        HashSet<Entity> delMap = new HashSet<>();
+        for (Entity e : getMap().getEntities()) {
+            if (testMap.contains(e.getUniqueId())) {
+                System.out.println("Error, repeated id! " + e.getUniqueId());
+                delMap.add(e);
+            }
+            else {
+                testMap.add(e.getUniqueId());
+            }
+            test += e.getUniqueId() + ", ";
+        }
+        System.out.println(test);
+        for (Iterator<Entity> it = delMap.stream().iterator(); it.hasNext(); ) {
+            Entity e = it.next();
+            getMap().getEntities().remove(e);
+        } */
 
         getMap().getEntities().add(entity);
         showEntityInfo(entity);
@@ -299,6 +324,54 @@ public class EntityManager extends MapManager {
             this.entityModelViews.get(i).setVisible(entities.size() > i); // Update visibility.
 
         entitiesToUpdate.clear();
+    }
+
+    /**
+     * Copied from updateEntities, this updates the position of a single entity, used for the Play button to simulate a path
+     */
+    public void updatePosition(Entity entity) {
+        List<Entity> entities = getEntities();
+
+        // Update entity positions.
+        float[] pos = new float[6];
+        for (int i = 0; i < entities.size(); i++) {
+            if (entities.get(i).getUniqueId() == entity.getUniqueId()) {
+                entity.getPosition(pos, getMap());
+
+                float roll = pos[3];
+                float pitch = pos[4];
+                float yaw = pos[5];
+
+                MeshView view = this.entityModelViews.get(i);
+                int foundRotations = 0;
+                for (Transform transform : view.getTransforms()) { // Update existing rotations.
+                    if (!(transform instanceof Rotate))
+                        continue;
+
+                    foundRotations++;
+                    Rotate rotate = (Rotate) transform;
+                    if (rotate.getAxis() == Rotate.X_AXIS) {
+                        rotate.setAngle(Math.toDegrees(roll));
+                    } else if (rotate.getAxis() == Rotate.Y_AXIS) {
+                        rotate.setAngle(Math.toDegrees(pitch));
+                    } else if (rotate.getAxis() == Rotate.Z_AXIS) {
+                        rotate.setAngle(Math.toDegrees(yaw));
+                    } else {
+                        foundRotations--;
+                    }
+                }
+
+                if (foundRotations == 0) { // There are no rotations, so add rotations.
+                    view.getTransforms().add(new Rotate(Math.toDegrees(yaw), Rotate.Z_AXIS));
+                    view.getTransforms().add(new Rotate(Math.toDegrees(pitch), Rotate.Y_AXIS));
+                    view.getTransforms().add(new Rotate(Math.toDegrees(roll), Rotate.X_AXIS));
+                }
+
+                view.setTranslateX(pos[0]);
+                view.setTranslateY(pos[1]);
+                view.setTranslateZ(pos[2]);
+            }
+        }
     }
 
     /**

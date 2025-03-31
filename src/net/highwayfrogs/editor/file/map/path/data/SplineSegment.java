@@ -25,6 +25,8 @@ public class SplineSegment extends PathSegment {
     private int[][] splineMatrix = new int[4][3];
     private int[] smoothT = new int[4]; // Smooth T is the distance values to reach each point.
     private int[][] smoothC = new int[4][3]; // Smoothing coefficient data.
+    BezierCurve curve = new BezierCurve();
+    float prevLength = -1;
 
     private static final int SPLINE_FIX_INTERVAL = 0x200;
 
@@ -39,6 +41,45 @@ public class SplineSegment extends PathSegment {
     @Override
     public boolean isAllowLengthEdit() {
         return true;
+    }
+
+    @Override
+    public void copyTo(PathSegment segment) {
+        if (segment instanceof SplineSegment) {
+            SplineSegment ss = (SplineSegment) segment;
+            ss.splineMatrix = java.util.Arrays.stream(splineMatrix).map(int[]::clone).toArray($ -> splineMatrix.clone());
+            ss.smoothT = new int[4];
+            System.arraycopy(smoothT, 0, ss.smoothT, 0, 4);
+            ss.smoothC = java.util.Arrays.stream(smoothC).map(int[]::clone).toArray($ -> smoothC.clone());
+            ss.setLength(getLength());
+        }
+    }
+
+    @Override
+    public void moveDelta(SVector delta, MapUIController controller) {
+        curve.start.setX((short) (curve.start.getX() - delta.getX()));
+        curve.start.setY((short) (curve.start.getY() - delta.getY()));
+        curve.start.setZ((short) (curve.start.getZ() - delta.getZ()));
+        curve.control1.setX((short) (curve.control1.getX() - delta.getX()));
+        curve.control1.setY((short) (curve.control1.getY() - delta.getY()));
+        curve.control1.setZ((short) (curve.control1.getZ() - delta.getZ()));
+        curve.control2.setX((short) (curve.control2.getX() - delta.getX()));
+        curve.control2.setY((short) (curve.control2.getY() - delta.getY()));
+        curve.control2.setZ((short) (curve.control2.getZ() - delta.getZ()));
+        curve.end.setX((short) (curve.end.getX() - delta.getX()));
+        curve.end.setY((short) (curve.end.getY() - delta.getY()));
+        curve.end.setZ((short) (curve.end.getZ() - delta.getZ()));
+        loadFromCurve(curve, controller);
+    }
+
+    public void flip(MapUIController controller) {
+        SVector preStart = new SVector(curve.start);
+        SVector prevControl1 = new SVector(curve.control1);
+        curve.start = new SVector(curve.end);
+        curve.control1 = new SVector(curve.control2);
+        curve.end = preStart;
+        curve.control2 = prevControl1;
+        loadFromCurve(curve, controller);
     }
 
     @Override
@@ -160,6 +201,7 @@ public class SplineSegment extends PathSegment {
 
     @Override
     public void onManualLengthUpdate(MapUIController controller, GUIEditorGrid editor) {
+        calibrateSmoothingAfterLengthChange();
         getPath().setupEditor(controller.getPathManager(), editor);
     }
 
@@ -178,7 +220,10 @@ public class SplineSegment extends PathSegment {
     public void setupEditor(MapUIController controller, GUIEditorGrid editor) {
         super.setupEditor(controller, editor);
 
-        BezierCurve curve = convertToBezierCurve();
+        editor.addButton("Flip", () -> flip(controller));
+
+        curve = convertToBezierCurve();
+        prevLength = Utils.fixedPointIntToFloat4Bit(getLength());
         editor.addFloatVector("Start", curve.getStart(), () -> loadFromCurve(curve, controller), controller);
         editor.addFloatVector("Control 1", curve.getControl1(), () -> loadFromCurve(curve, controller), controller);
         editor.addFloatVector("Control 2", curve.getControl2(), () -> loadFromCurve(curve, controller), controller);
@@ -203,7 +248,7 @@ public class SplineSegment extends PathSegment {
         SVector start;
 
         Path path = getPath();
-        if (path.getSegments().isEmpty()) {
+        if (!path.getSegments().isEmpty()) {
             PathSegment lastSegment = path.getSegments().get(path.getSegments().size() - 1);
             start = lastSegment.calculatePosition(map, lastSegment.getLength()).getPosition();
         } else {
@@ -214,7 +259,10 @@ public class SplineSegment extends PathSegment {
         SVector cp2 = new SVector(start).add(new SVector(-400, 0, 400));
         SVector end = new SVector(start).add(new SVector(0, 0, 800));
         loadFromCurve(new BezierCurve(start, cp1, cp2, end), null);
+        // Set a default length and smoothC so we have a baseline to start with
+        setLength(Utils.floatToFixedPointInt((float) (48.0 / 256.0), 12));
         loadSmoothT(new float[]{.25F, .5F, .75F, 1F});
+        smoothC = new int[][]{{0, 0, 45000000}, {0, 0, 45000000}, {0, 0, 45000000}, {0, 0, 45000000}};
         //TODO: Make Smooth C. Calculate length too.
     }
 
@@ -228,6 +276,17 @@ public class SplineSegment extends PathSegment {
         for (int i = 0; i < result.length; i++)
             result[i] = Utils.fixedPointIntToFloatNBits(this.smoothT[i], 12) / length;
         return result;
+    }
+
+    /**
+     * Calculates T smoothing percentages.
+     * @return tPercentages
+     */
+    public void calibrateSmoothingAfterLengthChange() {
+        float length = Utils.fixedPointIntToFloat4Bit(getLength());
+        for (int i = 0; i < this.smoothT.length; i++)
+            this.smoothT[i] = Utils.floatToFixedPointInt((Utils.fixedPointIntToFloatNBits(this.smoothT[i], 12) / prevLength) * length, 12);
+        prevLength = length;
     }
 
     /**

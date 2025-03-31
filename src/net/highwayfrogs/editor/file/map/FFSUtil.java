@@ -4,6 +4,7 @@ import javafx.scene.control.Alert.AlertType;
 import lombok.Cleanup;
 import net.highwayfrogs.editor.Constants;
 import net.highwayfrogs.editor.file.map.animation.MAPAnimation;
+import net.highwayfrogs.editor.file.map.animation.MAPAnimationType;
 import net.highwayfrogs.editor.file.map.animation.MAPUVInfo;
 import net.highwayfrogs.editor.file.map.grid.GridSquare;
 import net.highwayfrogs.editor.file.map.grid.GridStack;
@@ -262,16 +263,26 @@ public class FFSUtil {
                 }
             } else if (action.equalsIgnoreCase("anim")) {
                 MAPAnimation mapAnim = new MAPAnimation(map);
-                mapAnim.setUChange(Short.parseShort(args[1]));
-                mapAnim.setVChange(Short.parseShort(args[2]));
-                mapAnim.setUvFrameCount(Short.parseShort(args[3]));
-                mapAnim.setTexFrameDuration(Short.parseShort(args[4]));
+                // Fixing animation import from ffs
+                if ("TEXTURE".equals(args[1])) {
+                    mapAnim.setType(MAPAnimationType.TEXTURE);
+                } else if ("UV".equals(args[1])) {
+                    mapAnim.setType(MAPAnimationType.UV);
+                } else {
+                    mapAnim.setType(MAPAnimationType.BOTH);
+                }
+                mapAnim.setUChange(Short.parseShort(args[2]));
+                mapAnim.setVChange(Short.parseShort(args[3]));
+                mapAnim.setUvFrameCount(Integer.parseInt(args[5]));
+                mapAnim.setTexFrameDuration(Integer.parseInt(args[4]));
 
-                String[] texSplit = args[5].split(",");
-                for (int i = 0; i < texSplit.length; i++)
-                    mapAnim.getTextures().add(Short.parseShort(texSplit[i]));
+                String[] texSplit = args[6].split(",");
+                for (int i = 0; i < texSplit.length; i++) {
+                    short texIndex = (short) map.getRemapTable().indexOf(Short.parseShort(texSplit[i]));
+                    mapAnim.getTextures().add(texIndex);
+                }
 
-                String[] faceSplit = args.length > 6 ? args[6].split(",") : new String[0];
+                String[] faceSplit = args.length > 7 ? args[7].split(",") : new String[0];
                 for (int i = 0; i < faceSplit.length; i++)
                     mapAnim.getMapUVs().add(new MAPUVInfo(map, fullPolygonList.get(Integer.parseInt(faceSplit[i]))));
                 map.getMapAnimations().add(mapAnim);
