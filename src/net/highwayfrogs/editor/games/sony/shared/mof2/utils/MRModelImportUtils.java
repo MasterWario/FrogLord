@@ -255,4 +255,17 @@ public class MRModelImportUtils {
 
         return new SVector(x, y, z);
     }
+
+    /**
+     * Normalizes the vector by finding the current magnitude and then multiplying to the desired magnitude
+     * Frogger uses normals of magnitude 256 for the models, but they are often not imported as such
+     * @param vector The SVector to normalize
+     * @param magnitude The desired magnitude of the vector
+     * @return normalized SVector
+     */
+    public static SVector normalizeVectorToMagnitude(SVector vector, double magnitude) {
+        double currentLength = Math.sqrt(vector.getFloatX() * vector.getFloatX() + vector.getFloatY() * vector.getFloatY() + vector.getFloatZ() * vector.getFloatZ());
+        double targetMultiplier = magnitude / currentLength;
+        return vector.multiply(targetMultiplier);
+    }
 }
