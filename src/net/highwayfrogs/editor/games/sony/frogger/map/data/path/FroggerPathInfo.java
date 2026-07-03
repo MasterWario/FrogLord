@@ -353,7 +353,41 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                 setTotalPathDistance(DataUtils.floatToFixedPointInt4Bit(newValue.floatValue()), false);
                 manager.updateEntityPositionRotation(entity);
             }, 0.0, totalPathDist);
-            // Since the following text box lacks a label, there's an open spot for this button
+            TextField travDistText = editorGrid.addFloatField("", distAlongPath, newValue -> {
+                setTotalPathDistance(DataUtils.floatToFixedPointInt4Bit(newValue), false);
+                manager.updateEntityPositionRotation(entity);
+            }, newValue -> !((newValue < 0.0f) || (newValue > totalPathDist)));
+            travDistText.textProperty().bindBidirectional(travDistSlider.valueProperty(), new NumberStringConverter(new DecimalFormat("####0.00")));
+
+            // Show max travel distance.
+            TextField txtFieldMaxTravel = editorGrid.addFloatField("(Max. Travel):", totalPathDist);
+            txtFieldMaxTravel.setEditable(false);
+            txtFieldMaxTravel.setDisable(true);
+        } else {
+            editorGrid.addBoldLabel("Error: Invalid Path ID!");
+            editorGrid.addNormalLabel("Please select a valid path.");
+        }
+
+        // Motion Data:
+        for (FroggerPathMotionType type : FroggerPathMotionType.values())
+            if (type.isEditorCheckBoxShown())
+                editorGrid.addCheckBox(type.getLongDisplayName(), testFlag(type), newState -> {
+                    setFlag(type, newState);
+                    manager.updateEntityPositionRotation(entity); // These flags can control how the entity appears.
+                }).setTooltip(FXUtils.createTooltip(type.getTooltipText()));
+
+        FroggerEndOfPathBehavior endOfPathBehavior = FroggerEndOfPathBehavior.getBehavior(this);
+        ComboBox<FroggerEndOfPathBehavior> endOfPathSelector = editorGrid.addEnumSelector("End of Path Behavior", endOfPathBehavior, FroggerEndOfPathBehavior.values(), false, newValue -> {
+            setFlag(FroggerPathMotionType.ONE_SHOT, newValue.isOneShotFlagSet());
+            setFlag(FroggerPathMotionType.REPEAT, newValue.isRepeatFlagSet());
+        });
+        endOfPathSelector.setConverter(new AbstractStringConverter<>(FroggerEndOfPathBehavior::getDisplayName));
+        endOfPathSelector.setCellFactory(listView -> new LazyFXListCell<>(FroggerEndOfPathBehavior::getDisplayName, "Error")
+                .setWithoutIndexTooltipHandler(behavior -> behavior != null ? FXUtils.createTooltip(behavior.getTooltipText()) : null));
+
+        if (path != null) {
+            // There's only one tool currently, but the button makes more sense to be in its own section
+            editorGrid.addBoldLabel("Tools:");
             String distributeText = "Distribute Evenly";
             Button distributeButton = new Button(distributeText);
             distributeButton.setTooltip(new Tooltip("Readjust every entity on this path to an even distribution, using this entity as the base."));
@@ -364,6 +398,8 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                     distributeButton.setStyle("");
                 }
             });
+            // Create an even distribution of all entities on the current path
+            // This button is in the entity section because the currently selected entity will be used as the base
             distributeButton.setOnAction(evt -> {
                 if (path.getPathEntities() == null)
                     return;
@@ -459,37 +495,7 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                 distributeButton.setDisable(true);
             }
             editorGrid.setupNode(distributeButton);
-            TextField travDistText = editorGrid.addFloatField("", distAlongPath, newValue -> {
-                setTotalPathDistance(DataUtils.floatToFixedPointInt4Bit(newValue), false);
-                manager.updateEntityPositionRotation(entity);
-            }, newValue -> !((newValue < 0.0f) || (newValue > totalPathDist)));
-            travDistText.textProperty().bindBidirectional(travDistSlider.valueProperty(), new NumberStringConverter(new DecimalFormat("####0.00")));
-
-            // Show max travel distance.
-            TextField txtFieldMaxTravel = editorGrid.addFloatField("(Max. Travel):", totalPathDist);
-            txtFieldMaxTravel.setEditable(false);
-            txtFieldMaxTravel.setDisable(true);
-        } else {
-            editorGrid.addBoldLabel("Error: Invalid Path ID!");
-            editorGrid.addNormalLabel("Please select a valid path.");
         }
-
-        // Motion Data:
-        for (FroggerPathMotionType type : FroggerPathMotionType.values())
-            if (type.isEditorCheckBoxShown())
-                editorGrid.addCheckBox(type.getLongDisplayName(), testFlag(type), newState -> {
-                    setFlag(type, newState);
-                    manager.updateEntityPositionRotation(entity); // These flags can control how the entity appears.
-                }).setTooltip(FXUtils.createTooltip(type.getTooltipText()));
-
-        FroggerEndOfPathBehavior endOfPathBehavior = FroggerEndOfPathBehavior.getBehavior(this);
-        ComboBox<FroggerEndOfPathBehavior> endOfPathSelector = editorGrid.addEnumSelector("End of Path Behavior", endOfPathBehavior, FroggerEndOfPathBehavior.values(), false, newValue -> {
-            setFlag(FroggerPathMotionType.ONE_SHOT, newValue.isOneShotFlagSet());
-            setFlag(FroggerPathMotionType.REPEAT, newValue.isRepeatFlagSet());
-        });
-        endOfPathSelector.setConverter(new AbstractStringConverter<>(FroggerEndOfPathBehavior::getDisplayName));
-        endOfPathSelector.setCellFactory(listView -> new LazyFXListCell<>(FroggerEndOfPathBehavior::getDisplayName, "Error")
-                .setWithoutIndexTooltipHandler(behavior -> behavior != null ? FXUtils.createTooltip(behavior.getTooltipText()) : null));
     }
 
     @Getter
