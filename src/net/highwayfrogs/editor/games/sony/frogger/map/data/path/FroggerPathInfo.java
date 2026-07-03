@@ -3,6 +3,8 @@ package net.highwayfrogs.editor.games.sony.frogger.map.data.path;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.util.converter.NumberStringConverter;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -34,6 +36,7 @@ import net.highwayfrogs.editor.utils.data.writer.DataWriter;
 import net.highwayfrogs.editor.utils.fx.wrapper.LazyFXListCell;
 
 import java.text.DecimalFormat;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -350,6 +353,112 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                 setTotalPathDistance(DataUtils.floatToFixedPointInt4Bit(newValue.floatValue()), false);
                 manager.updateEntityPositionRotation(entity);
             }, 0.0, totalPathDist);
+            // Since the following text box lacks a label, there's an open spot for this button
+            String distributeText = "Distribute Evenly";
+            Button distributeButton = new Button(distributeText);
+            distributeButton.setTooltip(new Tooltip("Readjust every entity on this path to an even distribution, using this entity as the base."));
+            // Reset the confirmation if clicked elsewhere
+            distributeButton.focusedProperty().addListener((evt, oldValue, newValue) -> {
+                if (!newValue) {
+                    distributeButton.setText(distributeText);
+                    distributeButton.setStyle("");
+                }
+            });
+            distributeButton.setOnAction(evt -> {
+                if (path.getPathEntities() == null)
+                    return;
+
+                // Ask for a double click so users don't accidentally apply this
+                if (distributeButton.getText().equals(distributeText)) {
+                    distributeButton.setText("Click to Confirm");
+                    distributeButton.setStyle("-fx-body-color: #FF7F7F; -fx-text-fill: #4C0707;");
+                    return;
+                }
+
+                boolean selectedIsBackwards = testFlag(FroggerPathMotionType.BACKWARDS);
+                int originalLength = path.calculateTotalLength();
+                int totalLength;
+                // If the entities reverse direction, that's essentially double the path length since it's out and back
+                boolean selectedIsReversed = !testFlag(FroggerPathMotionType.REPEAT);
+                if (selectedIsReversed) {
+                    totalLength = originalLength * 2;
+                } else {
+                    totalLength = originalLength;
+                }
+                int entityCountOnPath = path.getPathEntities().size();
+
+                // The distance value of the currently selected entity
+                // (Start the chain where the selected entity is)
+                int selectedDistance;
+                // Treat backwards and reverse as a double length path, and backward repeat as if it is forwards
+                if (selectedIsBackwards && selectedIsReversed) {
+                    selectedDistance = (originalLength - getTotalPathDistance()) + originalLength;
+                } else {
+                    selectedDistance = getTotalPathDistance();
+                }
+
+                // Order the list so distribute produces a predictable result
+                path.getPathEntities().sort(Comparator.comparingInt(orderEntity -> {
+                    FroggerPathInfo orderPathInfo = orderEntity.getPathInfo();
+                    int distance = orderPathInfo.getTotalPathDistance();
+                    // Treat backwards and reverse as a double length path, and backward repeat as if it is forwards
+                    if (orderPathInfo.testFlag(FroggerPathMotionType.BACKWARDS) && !orderPathInfo.testFlag(FroggerPathMotionType.REPEAT)) {
+                        distance = (originalLength - distance) + originalLength;
+                    }
+                    // Ensure that the selected entity is always first in the list, so it doesn't move
+                    while (distance < selectedDistance) {
+                        distance += originalLength * 2;
+                    }
+                    return distance;
+                }));
+
+                // Rearrange every entity on this path in order
+                for (int i = 0; i < entityCountOnPath; i++) {
+                    FroggerMapEntity sortEntity = path.getPathEntities().get(i);
+                    if (sortEntity != null) {
+                        FroggerPathInfo pathData = sortEntity.getPathInfo();
+                        // If selected is reversed, apply reverse to everything
+                        if (selectedIsReversed) {
+                            boolean isEntityBackwards = false;
+                            int newSpot = selectedDistance + ((totalLength / entityCountOnPath) * i);
+                            // Subtract the path length until the entity is within the maximum length
+                            while (newSpot > originalLength) {
+                                newSpot -= originalLength;
+                                // Keep track of whether we need to make this entity backwards
+                                isEntityBackwards = !isEntityBackwards;
+                            }
+                            // The flags must be correct before we set the distance
+                            pathData.setFlag(FroggerPathMotionType.BACKWARDS, isEntityBackwards);
+                            pathData.setFlag(FroggerPathMotionType.REPEAT, false);
+                            pathData.setFlag(FroggerPathMotionType.ONE_SHOT, false);
+                            if (isEntityBackwards) {
+                                pathData.setTotalPathDistance(-originalLength + newSpot, true);
+                            } else {
+                                pathData.setTotalPathDistance(newSpot, true);
+                            }
+                            // For whatever reason this needs to be set again
+                            pathData.setFlag(FroggerPathMotionType.BACKWARDS, isEntityBackwards);
+                        } else {
+                            // The flags must be correct before we set the distance
+                            // Set all backwards as forwards when applying, and then
+                            // set all to backwards at the end if selected is also backward
+                            pathData.setFlag(FroggerPathMotionType.BACKWARDS, false);
+                            pathData.setFlag(FroggerPathMotionType.REPEAT, FroggerEndOfPathBehavior.getBehavior(this).repeatFlagSet);
+                            pathData.setFlag(FroggerPathMotionType.ONE_SHOT, FroggerEndOfPathBehavior.getBehavior(this).oneShotFlagSet);
+                            int newSpot = selectedDistance + ((totalLength / entityCountOnPath) * i);
+                            pathData.setTotalPathDistance(newSpot, true);
+                            pathData.setFlag(FroggerPathMotionType.BACKWARDS, selectedIsBackwards);
+                        }
+                        manager.updateEntityPositionRotation(sortEntity);
+                    }
+                }
+                manager.updateEditor();
+            });
+            // Disable button if only one entity is on the path
+            if (path.getPathEntities() != null && path.getPathEntities().size() <= 1) {
+                distributeButton.setDisable(true);
+            }
+            editorGrid.setupSecondNode(distributeButton, true);
             TextField travDistText = editorGrid.addFloatField("", distAlongPath, newValue -> {
                 setTotalPathDistance(DataUtils.floatToFixedPointInt4Bit(newValue), false);
                 manager.updateEntityPositionRotation(entity);
