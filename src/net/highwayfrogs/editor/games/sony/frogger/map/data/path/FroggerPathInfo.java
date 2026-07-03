@@ -458,7 +458,7 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
             if (path.getPathEntities() != null && path.getPathEntities().size() <= 1) {
                 distributeButton.setDisable(true);
             }
-            editorGrid.setupSecondNode(distributeButton, true);
+            editorGrid.setupNode(distributeButton);
             TextField travDistText = editorGrid.addFloatField("", distAlongPath, newValue -> {
                 setTotalPathDistance(DataUtils.floatToFixedPointInt4Bit(newValue), false);
                 manager.updateEntityPositionRotation(entity);
