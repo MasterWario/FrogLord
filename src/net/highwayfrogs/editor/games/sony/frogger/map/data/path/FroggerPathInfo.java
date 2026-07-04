@@ -393,12 +393,23 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
         endOfPathSelector.setConverter(new AbstractStringConverter<>(FroggerEndOfPathBehavior::getDisplayName));
         endOfPathSelector.setCellFactory(listView -> new LazyFXListCell<>(FroggerEndOfPathBehavior::getDisplayName, "Error")
                 .setWithoutIndexTooltipHandler(behavior -> behavior != null ? FXUtils.createTooltip(behavior.getTooltipText()) : null));
+    }
 
+    /**
+     * Creates the tools section of path info editor.
+     * In the future this may be moved out of this class, but right now the only tool is related to paths
+     * This is separate from setupEditor because we want this section after all entity data fields
+     * @param manager The manager managing the display of entities.
+     * @param editorGrid The editor grid to build the UI with.
+     */
+    public void setupEditorTools(FroggerUIMapEntityManager manager, GUIEditorGrid editorGrid) {
+        FroggerPath path = getPath();
         if (path != null) {
             // There's only one tool currently, but the button makes more sense to be in its own section
-            editorGrid.addBoldLabel("Tools:");
+            editorGrid.addSeparator(15);
+            editorGrid.addBoldLabel("Tools:",20);
             String distributeText = "Distribute Evenly";
-            Button distributeButton = new Button(distributeText);
+            Button distributeButton = editorGrid.addButton(distributeText, null);
             distributeButton.setTooltip(new Tooltip("Readjust every entity on this path to an even distribution, using this entity as the base."));
             // Reset the confirmation if clicked elsewhere
             distributeButton.focusedProperty().addListener((evt, oldValue, newValue) -> {
@@ -503,7 +514,6 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
             if (path.getPathEntities() != null && path.getPathEntities().size() <= 1) {
                 distributeButton.setDisable(true);
             }
-            editorGrid.setupNode(distributeButton);
         }
     }
 
