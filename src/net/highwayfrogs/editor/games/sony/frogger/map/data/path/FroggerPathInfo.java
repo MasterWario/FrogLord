@@ -143,10 +143,19 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
 
     /**
      * Updates the distance this is along the path. Note this uses total path distance not segment distance.
-     * @param totalDistance The total path distance.
-     * @param applyPathRunnerLogic If true, repeat/reset behavior will apply .
+     * @see #setTotalPathDistance(int, boolean, boolean) for param explanations.
      */
     public void setTotalPathDistance(int totalDistance, boolean applyPathRunnerLogic) {
+        setTotalPathDistance(totalDistance, applyPathRunnerLogic, false);
+    }
+
+    /**
+     * Updates the distance this is along the path. Note this uses total path distance not segment distance.
+     * @param totalDistance The total path distance.
+     * @param applyPathRunnerLogic If true, repeat/reset behavior will apply.
+     * @param treatOneShotAsRepeat Used for Distribute Evenly button to treat the stop flag as repeat for calculations.
+     */
+    public void setTotalPathDistance(int totalDistance, boolean applyPathRunnerLogic, boolean treatOneShotAsRepeat) {
         if (totalDistance < 0 && !applyPathRunnerLogic)
             throw new IllegalArgumentException("Cannot apply totalPathDistance of " + totalDistance + " to FroggerPathInfo. (Negative values are only allowed when using pathing logic.)");
 
@@ -176,13 +185,13 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
         boolean backwards = testFlag(FroggerPathMotionType.BACKWARDS); // If this is false, we've reached the start of the path.
         int distanceAfterEnd = remainingDistance % fullPathDistance;
 
-        if (testFlag(FroggerPathMotionType.ONE_SHOT)) {
+        if (testFlag(FroggerPathMotionType.REPEAT) || (treatOneShotAsRepeat && testFlag(FroggerPathMotionType.ONE_SHOT))) {
+            // Reset to the start of the path.
+            setTotalPathDistance(backwards ? fullPathDistance + distanceAfterEnd : distanceAfterEnd, false);
+        } else if (testFlag(FroggerPathMotionType.ONE_SHOT)) {
             this.segmentId = backwards ? 0 : path.getSegments().size() - 1;
             this.segmentDistance = backwards ? 0 : path.getSegments().get(this.segmentId).getLength();
             setFlag(FroggerPathMotionType.FINISHED, true);
-        } else if (testFlag(FroggerPathMotionType.REPEAT)) {
-            // Reset to the start of the path.
-            setTotalPathDistance(backwards ? fullPathDistance + distanceAfterEnd : distanceAfterEnd, false);
         } else { // Bounce.
             setFlag(FroggerPathMotionType.BACKWARDS, !backwards);
             setTotalPathDistance(backwards ? -distanceAfterEnd : fullPathDistance - distanceAfterEnd, false);
@@ -415,7 +424,7 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                 int originalLength = path.calculateTotalLength();
                 int totalLength;
                 // If the entities reverse direction, that's essentially double the path length since it's out and back
-                boolean selectedIsReversed = !testFlag(FroggerPathMotionType.REPEAT);
+                boolean selectedIsReversed = !(testFlag(FroggerPathMotionType.REPEAT) || testFlag(FroggerPathMotionType.ONE_SHOT));
                 if (selectedIsReversed) {
                     totalLength = originalLength * 2;
                 } else {
@@ -438,7 +447,7 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                     FroggerPathInfo orderPathInfo = orderEntity.getPathInfo();
                     int distance = orderPathInfo.getTotalPathDistance();
                     // Treat backwards and reverse as a double length path, and backward repeat as if it is forwards
-                    if (orderPathInfo.testFlag(FroggerPathMotionType.BACKWARDS) && !orderPathInfo.testFlag(FroggerPathMotionType.REPEAT)) {
+                    if (orderPathInfo.testFlag(FroggerPathMotionType.BACKWARDS) && !(orderPathInfo.testFlag(FroggerPathMotionType.REPEAT) || orderPathInfo.testFlag(FroggerPathMotionType.ONE_SHOT))) {
                         distance = (originalLength - distance) + originalLength;
                     }
                     // Ensure that the selected entity is always first in the list, so it doesn't move
@@ -482,7 +491,7 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                             pathData.setFlag(FroggerPathMotionType.REPEAT, FroggerEndOfPathBehavior.getBehavior(this).repeatFlagSet);
                             pathData.setFlag(FroggerPathMotionType.ONE_SHOT, FroggerEndOfPathBehavior.getBehavior(this).oneShotFlagSet);
                             int newSpot = selectedDistance + ((totalLength / entityCountOnPath) * i);
-                            pathData.setTotalPathDistance(newSpot, true);
+                            pathData.setTotalPathDistance(newSpot, true, true);
                             pathData.setFlag(FroggerPathMotionType.BACKWARDS, selectedIsBackwards);
                         }
                         manager.updateEntityPositionRotation(sortEntity);
