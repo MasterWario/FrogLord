@@ -36,6 +36,7 @@ import net.highwayfrogs.editor.utils.data.writer.DataWriter;
 import net.highwayfrogs.editor.utils.fx.wrapper.LazyFXListCell;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -453,8 +454,11 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
                     selectedDistance = getTotalPathDistance();
                 }
 
+                // Create a copy of the list so entity removal binary search works correctly
+                List<FroggerMapEntity> tempEntityList = new ArrayList<>(path.getPathEntities());
+
                 // Order the list so distribute produces a predictable result
-                path.getPathEntities().sort(Comparator.comparingInt(orderEntity -> {
+                tempEntityList.sort(Comparator.comparingInt(orderEntity -> {
                     FroggerPathInfo orderPathInfo = orderEntity.getPathInfo();
                     int distance = orderPathInfo.getTotalPathDistance();
                     // Treat backwards and reverse as a double length path, and backward repeat as if it is forwards
@@ -470,7 +474,7 @@ public class FroggerPathInfo extends SCGameData<FroggerGameInstance> {
 
                 // Rearrange every entity on this path in order
                 for (int i = 0; i < entityCountOnPath; i++) {
-                    FroggerMapEntity sortEntity = path.getPathEntities().get(i);
+                    FroggerMapEntity sortEntity = tempEntityList.get(i);
                     if (sortEntity != null) {
                         FroggerPathInfo pathData = sortEntity.getPathInfo();
                         // If selected is reversed, apply reverse to everything
