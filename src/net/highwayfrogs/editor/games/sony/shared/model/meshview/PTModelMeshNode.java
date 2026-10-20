@@ -1,13 +1,13 @@
 package net.highwayfrogs.editor.games.sony.shared.model.meshview;
 
-import net.highwayfrogs.editor.games.psx.math.PSXMatrix;
 import net.highwayfrogs.editor.games.psx.math.vector.IVector;
-import net.highwayfrogs.editor.games.psx.math.vector.SVector;
 import net.highwayfrogs.editor.games.psx.shading.PSXShadeTextureDefinition;
 import net.highwayfrogs.editor.games.sony.shared.model.PTModel;
-import net.highwayfrogs.editor.games.sony.shared.model.PTTransformInstanceData;
+import net.highwayfrogs.editor.games.sony.shared.model.primitive.IPTPrimitive;
 import net.highwayfrogs.editor.games.sony.shared.model.primitive.PTPolygon;
 import net.highwayfrogs.editor.games.sony.shared.model.primitive.PTPrimitiveBlock;
+import net.highwayfrogs.editor.games.sony.shared.model.primitive.PTPrimitiveControl;
+import net.highwayfrogs.editor.games.sony.shared.model.primitive.PTPrimitiveRenderState;
 import net.highwayfrogs.editor.games.sony.shared.model.primitive.PTPrimitiveType;
 import net.highwayfrogs.editor.games.sony.shared.model.staticmesh.PTStaticFile;
 import net.highwayfrogs.editor.games.sony.shared.model.staticmesh.PTStaticPart;
@@ -23,6 +23,7 @@ import net.highwayfrogs.editor.system.math.Vector2f;
  */
 public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
     private final Vector2f tempVector = new Vector2f();
+    private final PTPrimitiveRenderState renderState = new PTPrimitiveRenderState();
 
     public PTModelMeshNode(PTModelMesh mesh) {
         super(mesh);
@@ -37,10 +38,14 @@ public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
     protected void onAddedToMesh() {
         super.onAddedToMesh();
 
-        // Add polygons.
-        for (PTStaticPart part : getMeshFile().getParts())
-            for (PTStaticPartCel partCel : part.getPartCels())
-                add(partCel);
+        // Add each of the partCels.
+        // TODO: More research needs to be done into what the "currentPartCel" is, and how to support that.
+        this.renderState.clearVertexBuffer();
+        for (int i = 0; i < getMeshFile().getParts().size(); i++) {
+            PTStaticPart part = getMeshFile().getParts().get(i);
+            if (!part.getPartCels().isEmpty())
+                add(part.getPartCels().get(getModel().getPartData().get(i).getCurrentPartCel()));
+        }
     }
 
     @Override
@@ -50,7 +55,12 @@ public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
         // Add polygons.
         for (int i = 0; i < data.getPrimitiveBlocks().size(); i++) {
             PTPrimitiveBlock block = data.getPrimitiveBlocks().get(i);
-            if (block.getPrimitiveType() == PTPrimitiveType.CONTROL || block.getPrimitiveType() == null)
+            if (block.getPrimitiveType() == PTPrimitiveType.CONTROL) {
+                for (int j = 0; j < block.getPrimitives().size(); j++)
+                    this.renderState.applyControl(getModel(), data, (PTPrimitiveControl) block.getPrimitives().get(j));
+                continue;
+            }
+            if (block.getPrimitiveType() == null)
                 continue; // Skip non-polygon.
 
             for (int j = 0; j < block.getPrimitives().size(); j++)
@@ -60,24 +70,14 @@ public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
         return entry;
     }
 
-    private SVector rotateVector(PTStaticPartCel partCel, SVector input) {
-        if (getModel().getTransformData().size() <= partCel.getParentPart().getTransformId() )
-            return input; // TODO: This occurs when the .SKEL file isn't resolved for a model, and it uses the part count for the transform count.
-
-        PTTransformInstanceData transform = getModel().getTransformData().get(partCel.getParentPart().getTransformId());
-        IVector result = new IVector();
-        PSXMatrix.MRApplyMatrix(transform.getMatrix(), input, result);
-        return new SVector(result.getFloatX(), result.getFloatY(), result.getFloatZ());
-    }
-
     private void addPolygon(DynamicMeshTypedDataEntry entry, PTPolygon polygon) {
         // Resolve texture.
         ITextureSource textureSource = getMesh().getShadedTextureManager().getShadedTexture(polygon);
         Texture texture = getMesh().getTextureAtlas().getTextureFromSourceOrFallback(textureSource);
 
-        SVector vertex1 = rotateVector(entry.getDataSource(), entry.getDataSource().getVertex(getModel(), polygon.getVertices()[0]));
-        SVector vertex2 = rotateVector(entry.getDataSource(), entry.getDataSource().getVertex(getModel(), polygon.getVertices()[1]));
-        SVector vertex3 = rotateVector(entry.getDataSource(), entry.getDataSource().getVertex(getModel(), polygon.getVertices()[2]));
+        IVector vertex1 = this.renderState.getVertexBuffer()[polygon.getVertices()[0]];
+        IVector vertex2 = this.renderState.getVertexBuffer()[polygon.getVertices()[1]];
+        IVector vertex3 = this.renderState.getVertexBuffer()[polygon.getVertices()[2]];
         int vtxIndex1 = entry.addVertexValue(vertex1.getFloatX(), vertex1.getFloatY(), vertex1.getFloatZ());
         int vtxIndex2 = entry.addVertexValue(vertex2.getFloatX(), vertex2.getFloatY(), vertex2.getFloatZ());
         int vtxIndex3 = entry.addVertexValue(vertex3.getFloatX(), vertex3.getFloatY(), vertex3.getFloatZ());
@@ -95,7 +95,7 @@ public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
             //int vtxIndex3 = this.vertexEntry.getVertexStartIndex() + polygon.getVertices()[2];
             //int vtxIndex4 = this.vertexEntry.getVertexStartIndex() + polygon.getVertices()[3];
 
-            SVector vertex4 = rotateVector(entry.getDataSource(), entry.getDataSource().getVertex(getModel(), polygon.getVertices()[3]));
+            IVector vertex4 = this.renderState.getVertexBuffer()[polygon.getVertices()[3]];
             int vtxIndex4 = entry.addVertexValue(vertex4.getFloatX(), vertex4.getFloatY(), vertex4.getFloatZ());
 
             // JavaFX uses counter-clockwise winding order.
@@ -119,7 +119,7 @@ public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
     private Vector2f getTextureCoordinate(PTPolygon polygon, ITextureSource textureSource, Texture texture, int index, Vector2f fallback) {
         Vector2f localUv;
         if (polygon.getPolygonType().isTextured()) {
-            localUv = polygon.getTextureUvs()[index].toVector(this.tempVector);
+            localUv = polygon.getTextureCoordinate(index, this.tempVector);
         } else {
             localUv = this.tempVector.setXY(fallback);
         }
@@ -136,24 +136,39 @@ public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
 
     @Override
     public void updateTexCoord(DynamicMeshTypedDataEntry entry, int localTexCoordIndex) {
-        /*PTStaticPartCel partCel = entry.getDataSource();
+        PTStaticPartCel partCel = entry.getDataSource();
         PTPolygon polygon = null;
+        int polygonVertexIndex = localTexCoordIndex;
 
         for (int i = 0; i < partCel.getPrimitiveBlocks().size(); i++) {
             PTPrimitiveBlock primitiveBlock = partCel.getPrimitiveBlocks().get(i);
 
-            for (int j = 0; j < )
+            for (int j = 0; j < primitiveBlock.getPrimitives().size(); j++) {
+                IPTPrimitive primitive = primitiveBlock.getPrimitives().get(j);
+                if (!(primitive instanceof PTPolygon))
+                    continue;
 
+                PTPolygon testPolygon = (PTPolygon) primitive;
+                if (polygonVertexIndex < testPolygon.getVertexCount()) {
+                    polygon = testPolygon;
+                    break;
+                }
+
+                polygonVertexIndex -= testPolygon.getVertexCount();
+            }
+
+            if (polygon != null)
+                break;
         }
 
         if (polygon == null)
-            return;
+            throw new IllegalArgumentException("Unsupported local texCoordIndex " + localTexCoordIndex);
 
         ITextureSource textureSource = getMesh().getShadedTextureManager().getShadedTexture(polygon);
         Texture texture = getMesh().getTextureAtlas().getTextureFromSourceOrFallback(textureSource);
 
         Vector2f uv;
-        switch (localTexCoordIndex) {
+        switch (polygonVertexIndex) {
             case 0:
                 uv = getTextureCoordinate(polygon, textureSource, texture, 0, Vector2f.ZERO); // uvTopLeft, 0F, 0F
                 break;
@@ -170,7 +185,7 @@ public class PTModelMeshNode extends DynamicMeshAdapterNode<PTStaticPartCel> {
                 throw new IllegalArgumentException("Unsupported local texCoordIndex " + localTexCoordIndex);
         }
 
-        entry.writeTexCoordValue(localTexCoordIndex, uv);*/
+        entry.writeTexCoordValue(localTexCoordIndex, uv);
     }
 
     /**
