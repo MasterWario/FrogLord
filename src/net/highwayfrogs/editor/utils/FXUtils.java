@@ -405,9 +405,11 @@ public class FXUtils {
                             onPass.run();
                         field.setStyle(null); // Disable any red / green styling.
                         resetTextRef.set(newText);
-                        if (field.getParent() != null) // Remove field focus after success.
-                            field.getParent().requestFocus();
                         field.setText(NumberUtils.calculateString(newText));
+                        if (field.getParent() != null && code == KeyCode.TAB) // Remove field focus after success.
+                            field.getParent().requestFocus();
+                        else
+                            field.end(); // If we move the cursor to the end, more math is easier to do
                         return;
                     } catch (Throwable th) {
                         makeErrorPopUp("An error occurred handling the text '" + newText + "'.", th, true);
