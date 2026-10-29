@@ -246,6 +246,8 @@ public class GUIEditorGrid {
      */
     public TextField addSignedByteField(String label, byte number, Function<Byte, Boolean> validityTest, Consumer<Byte> setter) {
         return addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isInteger(str))
                 return false;
 
@@ -297,6 +299,8 @@ public class GUIEditorGrid {
      */
     public TextField addUnsignedByteField(String label, short number, Function<Short, Boolean> validityTest, Consumer<Short> setter) {
         return addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isInteger(str))
                 return false;
 
@@ -348,6 +352,8 @@ public class GUIEditorGrid {
      */
     public TextField addSignedShortField(String label, short number, Function<Short, Boolean> validityTest, Consumer<Short> setter) {
         return addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isInteger(str))
                 return false;
 
@@ -424,6 +430,8 @@ public class GUIEditorGrid {
      */
     public TextField addUnsignedShortField(String label, int number, Function<Integer, Boolean> validityTest, Consumer<Integer> setter) {
         return addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isInteger(str))
                 return false;
 
@@ -474,6 +482,8 @@ public class GUIEditorGrid {
      */
     public TextField addSignedIntegerField(String label, int number, Function<Integer, Boolean> validityTest, Consumer<Integer> setter) {
         return addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isInteger(str))
                 return false;
 
@@ -550,6 +560,8 @@ public class GUIEditorGrid {
      */
     public TextField addUnsignedIntegerField(String label, long number, Function<Long, Boolean> validityTest, Consumer<Long> setter) {
         return addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isInteger(str))
                 return false;
 
@@ -597,6 +609,8 @@ public class GUIEditorGrid {
      */
     public TextField addFloatField(String label, float number, Consumer<Float> setter, Predicate<Float> test) {
         TextField field = addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isNumber(str))
                 return false;
 
@@ -619,6 +633,8 @@ public class GUIEditorGrid {
      */
     public TextField addDoubleField(String label, double number, Consumer<Double> setter, Predicate<Double> test) {
         TextField field = addTextField(label, String.valueOf(number), str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isNumber(str))
                 return false;
 
@@ -791,6 +807,8 @@ public class GUIEditorGrid {
         yField.setPrefWidth(60);
         zField.setPrefWidth(60);
         FXUtils.setHandleKeyPress(xField, str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isNumber(str))
                 return false;
 
@@ -798,6 +816,8 @@ public class GUIEditorGrid {
             return true;
         }, onPass);
         FXUtils.setHandleKeyPress(yField, str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isNumber(str))
                 return false;
 
@@ -805,6 +825,8 @@ public class GUIEditorGrid {
             return true;
         }, onPass);
         FXUtils.setHandleKeyPress(zField, str -> {
+            str = NumberUtils.calculateString(str);
+
             if (!NumberUtils.isNumber(str))
                 return false;
 
@@ -1434,6 +1456,8 @@ public class GUIEditorGrid {
         String displayStr = (isNegativeOneSpecial && value == -1) ? "-1" : FORMAT.format((double) value / interval);
 
         return addTextField(text, displayStr, newText -> {
+            newText = NumberUtils.calculateString(newText);
+
             double parsedValue;
 
             try {
@@ -1501,6 +1525,8 @@ public class GUIEditorGrid {
         String displayStr = (isNegativeOneSpecial && value == -1) ? "-1" : FORMAT.format((double) value / interval);
 
         return addTextField(text, displayStr, newText -> {
+            newText = NumberUtils.calculateString(newText);
+
             double parsedValue;
 
             try {
@@ -1556,6 +1582,8 @@ public class GUIEditorGrid {
         String displayStr = (isNegativeOneMax && value == 0xFFFF) ? "-1" : FORMAT.format((double) value / interval);
 
         return addTextField(text, displayStr, newText -> {
+            newText = NumberUtils.calculateString(newText);
+
             double parsedValue;
 
             try {

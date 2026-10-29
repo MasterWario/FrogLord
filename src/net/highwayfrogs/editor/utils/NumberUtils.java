@@ -2,6 +2,8 @@ package net.highwayfrogs.editor.utils;
 
 import net.highwayfrogs.editor.Constants;
 
+import java.util.Stack;
+
 /**
  * Contains static utilities for working with numbers.
  * Created by Kneesnap on 10/25/2024.
@@ -244,5 +246,78 @@ public class NumberUtils {
      */
     public static int getHexDigitCount(int number) {
         return (int) Math.max(Math.log10(number) / BASE_16_LOGARITHM_CONVERTER, 0) + 1;
+    }
+
+    /**
+     * Tries to run math on a String sequence
+     * Currently implemented: add (+), subtract (-), multiply (*), divide (/)
+     * Returns the same string unmodified if there are invalid characters
+     * @param s the String to run the math on
+     * @return a String of the mathematical result
+     */
+    public static String calculateString(String s) {
+        boolean isDouble = false;
+        Stack<Double> stk = new Stack<>();
+        // record the numbers in the formula
+        double num = 0;
+        // record the sign before num, initialized as +
+        char sign = '+';
+        boolean point = false;
+        int places = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isDigit(c)) {
+                if (point) {
+                    places++;
+                }
+                num = 10 * num + (c - '0');
+            }
+
+            if (c == '+' || c == '-' || c == '/' || c == '*' || i == s.length() - 1) {
+                double pre;
+                if (point) {
+                    num = num / Math.pow(10, places);
+                    point = false;
+                    places = 0;
+                }
+                switch (sign) {
+                    case '+':
+                        stk.push(num);
+                        break;
+                    case '-':
+                        stk.push(-num);
+                        break;
+                    // just take out the previous number and perform corresponding operation
+                    case '*':
+                        pre = stk.pop();
+                        stk.push(pre * num);
+                        break;
+                    case '/':
+                        pre = stk.pop();
+                        stk.push(pre / num);
+                        break;
+                }
+                // update the sign to the current sign, reset the number to zero
+                sign = c;
+                num = 0;
+            } else if (c == '.') {
+                point = true;
+                isDouble = true;
+            }
+            // Return the original string if we find invalid characters
+            if (!(Character.isDigit(c) || " +-/*.".contains(String.valueOf(c)))) {
+                return s;
+            }
+        }
+        // sum up all the results in the stack to get the answer
+        double res = 0;
+        while (!stk.isEmpty()) {
+            res += stk.pop();
+        }
+        if (isDouble) {
+            return String.valueOf(res);
+        } else  {
+            return String.valueOf((int) res);
+        }
     }
 }

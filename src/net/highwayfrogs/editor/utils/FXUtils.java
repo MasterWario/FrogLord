@@ -407,6 +407,7 @@ public class FXUtils {
                         resetTextRef.set(newText);
                         if (field.getParent() != null) // Remove field focus after success.
                             field.getParent().requestFocus();
+                        field.setText(NumberUtils.calculateString(newText));
                         return;
                     } catch (Throwable th) {
                         makeErrorPopUp("An error occurred handling the text '" + newText + "'.", th, true);
