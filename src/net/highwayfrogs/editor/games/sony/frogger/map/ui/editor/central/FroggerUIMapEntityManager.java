@@ -186,6 +186,10 @@ public class FroggerUIMapEntityManager extends FroggerCentralMapListManager<Frog
 
         if (this.selectedMouseEntity == entity)
             setSelectedMouseEntity(null);
+
+        // The path speed may change after removing an entity
+        getController().getPathManager().updateEditor();
+
         return true;
     }
 
@@ -288,8 +292,11 @@ public class FroggerUIMapEntityManager extends FroggerCentralMapListManager<Frog
             getMap().getPathPacket().removeEntityFromPathTracking(this.selectedMouseEntity);
         pathInfo.setPath(selection.getPath(), selection.getPathSegment());
         pathInfo.setSegmentDistance(selection.getSegmentDistance());
-        if (didPathChange)
+        if (didPathChange) {
             getMap().getPathPacket().addEntityToPathTracking(this.selectedMouseEntity);
+            // The path speed may change after adding an entity
+            getController().getPathManager().updateEditor();
+        }
 
         // Update the entity position.
         this.selectedMouseEntity.getPathEntityData().getPositionAndRotation(this.selectedMouseEntityPosition);

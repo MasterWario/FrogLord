@@ -195,6 +195,8 @@ public class FroggerUIMapPathManager extends FroggerCentralMapListManager<Frogge
         boolean doesNotHavePath = (getSelectedValue() == null);
         this.clonePathButton.setDisable(doesNotHavePath);
         this.flipPathButton.setDisable(doesNotHavePath);
+        // If the entities on this path change, the path speed may change as well
+        updatePathSpeedTextField();
     }
 
     @Override
