@@ -5,6 +5,7 @@ import net.highwayfrogs.editor.Constants;
 import net.highwayfrogs.editor.games.psx.math.vector.SVector;
 import net.highwayfrogs.editor.games.sony.frogger.FroggerGameInstance;
 import net.highwayfrogs.editor.games.sony.frogger.map.FroggerMapFile;
+import net.highwayfrogs.editor.games.sony.frogger.map.FroggerMapTheme;
 import net.highwayfrogs.editor.games.sony.frogger.map.data.animation.FroggerMapAnimation;
 import net.highwayfrogs.editor.games.sony.frogger.map.data.animation.FroggerMapAnimationTargetPolygon;
 import net.highwayfrogs.editor.games.sony.frogger.map.data.grid.FroggerGridSquare;
@@ -295,7 +296,16 @@ public class FFSUtil {
     }
 
     private static void commandPolygon(FroggerMapLoadContext context, OptionalArguments args) throws CommandListException {
+        boolean caveFlag = context.getMapFile().getMapTheme() == FroggerMapTheme.CAVE;
+        boolean switchFlag = false;
         FroggerMapPolygonType polygonType = args.useNext().getAsEnumOrError(FroggerMapPolygonType.class);
+        if (polygonType == FroggerMapPolygonType.FT3 && caveFlag) {
+            polygonType = FroggerMapPolygonType.GT3;
+            switchFlag = true;
+        } else if (polygonType == FroggerMapPolygonType.FT4 && caveFlag) {
+            polygonType = FroggerMapPolygonType.GT4;
+            switchFlag = true;
+        }
         FroggerMapPolygon newPolygon = new FroggerMapPolygon(context.getMapFile(), polygonType);
 
         String showStr = args.useNext().getAsString();
@@ -335,9 +345,16 @@ public class FFSUtil {
             }
         }
 
+        int previousColor = -1;
         // Read colors.
-        for (int i = 0; i < newPolygon.getColors().length; i++)
-            newPolygon.getColors()[i].fromRGB(Integer.parseInt(args.useNext().getAsString(), 16));
+        for (int i = 0; i < newPolygon.getColors().length; i++) {
+            if (caveFlag && switchFlag && previousColor != -1) {
+                newPolygon.getColors()[i].fromRGB(previousColor);
+            } else {
+                previousColor = Integer.parseInt(args.useNext().getAsString(), 16);
+                newPolygon.getColors()[i].fromRGB(previousColor);
+            }
+        }
 
         // Read grid square data.
         if (args.hasNext()) {
