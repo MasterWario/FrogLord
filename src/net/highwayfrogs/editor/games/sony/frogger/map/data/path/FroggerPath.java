@@ -358,6 +358,7 @@ public class FroggerPath extends SCGameData<FroggerGameInstance> {
             this.segments.add(newSegment);
             pathPreview.getPathManager().updateEditor();
             pathPreview.updatePath(); // Show new segment.
+            UISidePanel.setScrollWhenUpdated(true);
         }, FroggerPathSegmentType.values(), FroggerPathSegmentType.LINE);
     }
 

@@ -9,6 +9,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import lombok.Getter;
+import lombok.Setter;
 import net.highwayfrogs.editor.gui.GUIEditorGrid;
 
 /**
@@ -24,6 +25,8 @@ public class UISidePanel {
     @Getter private final TitledPane titledPane;
     @Getter private boolean visible;
 
+    @Setter private static boolean scrollWhenUpdated = false;
+
     public UISidePanel(Accordion parent, boolean insertFirst, String title) {
         this.parent = parent;
         this.insertFirst = insertFirst;
@@ -38,6 +41,13 @@ public class UISidePanel {
         this.scrollPane = new ScrollPane(this.anchorPane);
         this.scrollPane.setFitToWidth(true);
         this.scrollPane.setPadding(new Insets(8, 8, 8, 8));
+
+        this.elementRoot.heightProperty().addListener((observable, oldValue, newValue) -> {
+            if (scrollWhenUpdated) {
+                scrollPane.setVvalue(1.0);
+                scrollWhenUpdated = false;
+            }
+        });
 
         this.titledPane = new TitledPane(title, this.scrollPane);
         this.titledPane.setAnimated(false);
