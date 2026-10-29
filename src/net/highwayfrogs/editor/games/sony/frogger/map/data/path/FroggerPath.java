@@ -1,7 +1,10 @@
 package net.highwayfrogs.editor.games.sony.frogger.map.data.path;
 
+import javafx.geometry.Point3D;
+import javafx.scene.input.KeyCode;
 import lombok.Getter;
 import net.highwayfrogs.editor.Constants;
+import net.highwayfrogs.editor.file.standard.Vector;
 import net.highwayfrogs.editor.games.psx.math.vector.IVector;
 import net.highwayfrogs.editor.games.psx.math.vector.SVector;
 import net.highwayfrogs.editor.games.sony.SCGameData;
@@ -10,9 +13,13 @@ import net.highwayfrogs.editor.games.sony.frogger.map.FroggerMapFile;
 import net.highwayfrogs.editor.games.sony.frogger.map.data.entity.FroggerMapEntity;
 import net.highwayfrogs.editor.games.sony.frogger.map.data.path.FroggerPathInfo.FroggerPathMotionType;
 import net.highwayfrogs.editor.games.sony.frogger.map.data.path.segments.FroggerPathSegment;
+import net.highwayfrogs.editor.games.sony.frogger.map.mesh.FroggerMapMeshController;
 import net.highwayfrogs.editor.games.sony.frogger.map.packets.FroggerMapFilePacketPath;
 import net.highwayfrogs.editor.games.sony.frogger.map.ui.editor.central.FroggerUIMapPathManager.FroggerPathPreview;
 import net.highwayfrogs.editor.gui.GUIEditorGrid;
+import net.highwayfrogs.editor.gui.InputManager;
+import net.highwayfrogs.editor.gui.editor.UISidePanel;
+import net.highwayfrogs.editor.system.math.Vector3f;
 import net.highwayfrogs.editor.utils.DataUtils;
 import net.highwayfrogs.editor.utils.NumberUtils;
 import net.highwayfrogs.editor.utils.Utils;
@@ -318,7 +325,7 @@ public class FroggerPath extends SCGameData<FroggerGameInstance> {
                 lastPosition.setValues(currPosition);
                 this.pathEntities.forEach(pathPreview.getController().getEntityManager()::updateEntityPositionRotation);
                 pathPreview.updatePath(); // Update path.
-            }, pathPreview.getController());
+            }, pathPreview.getController(), (vector, bits) -> selectEntirePathPosition(pathPreview, vector, bits));
             nodesToKeepRef.set(editor.getGridPane().getChildren().size());
             rowsToKeepRef.set(editor.getGridPane().getRowConstraints().size() - 1);
         }
@@ -406,5 +413,47 @@ public class FroggerPath extends SCGameData<FroggerGameInstance> {
      */
     public boolean isOldPathFormatEnabled() {
         return this.mapFile != null && this.mapFile.getMapConfig().isOldPathFormat();
+    }
+
+    /**
+     * Allows using the 'Select' button to update the entire path's position.
+     * @param pathPreview the pathPreview to update
+     * @param vector the vector to reposition
+     * @param bits the number bits of precision.
+     */
+    protected void selectEntirePathPosition(FroggerPathPreview pathPreview, Vector vector, int bits) {
+        FroggerMapMeshController frogController = pathPreview.getController();
+        frogController.getBakedGeometryManager().getPolygonSelector().activate(polygon -> {
+            InputManager inputManager = pathPreview.getController().getInputManager();
+
+            // Since we need to move every segment, create a delta using a new vector and a copy of the old one
+            SVector newVector = new SVector();
+            if (inputManager.isKeyPressed(KeyCode.CONTROL)) {
+                InputManager.MouseInputState mouseState = inputManager.getMouseTracker().getMouseState();
+                Point3D intersectedPoint = new Point3D(mouseState.getIntersectedPoint().getX(), mouseState.getIntersectedPoint().getY(), mouseState.getIntersectedPoint().getZ());
+                Point3D newWorldPos = mouseState.getIntersectedNode().localToScene(intersectedPoint);
+                newVector.setFloatX(Math.round(newWorldPos.getX() / 4F) * 4F, bits);
+                newVector.setFloatY(Math.round(newWorldPos.getY() / 4F) * 4F, bits);
+                newVector.setFloatZ(Math.round(newWorldPos.getZ() / 4F) * 4F, bits);
+            } else {
+                Vector3f centerOfPolygon = polygon.getCenterOfPolygon(null);
+                newVector.setFloatX(centerOfPolygon.getX(), bits);
+                newVector.setFloatY(centerOfPolygon.getY(), bits);
+                newVector.setFloatZ(centerOfPolygon.getZ(), bits);
+            }
+
+            // Calculate delta
+            SVector oldVector = new SVector(vector.getFloatX(), vector.getFloatY(), vector.getFloatZ());
+            SVector delta = newVector.clone().subtract(oldVector);
+
+            // Apply delta to every segment
+            for (int i = 0; i < this.segments.size(); i++)
+                this.segments.get(i).moveDelta(delta);
+
+            this.pathEntities.forEach(pathPreview.getController().getEntityManager()::updateEntityPositionRotation);
+
+            pathPreview.updatePath(); // Update path.
+            pathPreview.getPathManager().updateEditor(); // Update editor with all the new positions
+        }, null);
     }
 }
