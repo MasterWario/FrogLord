@@ -13,6 +13,7 @@ import net.highwayfrogs.editor.games.sony.shared.spline.MRBezierCurve;
 import net.highwayfrogs.editor.games.sony.shared.spline.MRSplineMatrix;
 import net.highwayfrogs.editor.gui.GUIEditorGrid;
 import net.highwayfrogs.editor.utils.DataUtils;
+import net.highwayfrogs.editor.utils.Utils;
 import net.highwayfrogs.editor.utils.data.reader.DataReader;
 import net.highwayfrogs.editor.utils.data.writer.DataWriter;
 import net.highwayfrogs.editor.utils.image.ImageUtils;
@@ -33,6 +34,7 @@ public class FroggerPathSegmentSpline extends FroggerPathSegment {
     private final int[] smoothT = new int[4]; // Smooth T is the distance values to reach each point. (Translation)
     private final int[][] smoothC = new int[4][3]; // Smoothing coefficient data.
     private final transient MRBezierCurve tempBezierCurve;
+    private boolean showAdvanced = false;
 
     private static final int SPLINE_FIX_INTERVAL = 0x200;
 
@@ -207,9 +209,104 @@ public class FroggerPathSegmentSpline extends FroggerPathSegment {
         editor.addFloatVector("End", curve.getEnd(), () -> loadFromCurve(curve, pathPreview), pathPreview.getController(),
                 (vector, bits) -> selectPathPosition(pathPreview, vector, bits, () -> loadFromCurve(curve, pathPreview)));
 
-        // The user doesn't really need to see this or even know it exists, this is just around for debugging purposes.
-        /*editor.addBoldLabel("Smoothing Curve:");
-        editor.addCenteredImageView(createSmoothingCurveImageView());*/
+        // Hide this unwieldy spline editor unless the user wants to see it
+        if (!showAdvanced) {
+            editor.addButton("Show Advanced", () -> {
+                showAdvanced = true;
+                pathPreview.getPathManager().updateEditor();
+            });
+        }
+
+        if (showAdvanced) {
+            // Adding this back in for custom curves
+            ImageView curveView = createSmoothingCurveImageView();
+
+            editor.addBoldLabel("Segment Time %:");
+            for (int i = 0; i < this.smoothT.length; i++) {
+                final int index = i;
+                editor.addIntegerSlider("Segment #" + (i + 1) + ":", this.smoothT[i], newValue -> {
+                    // TODO: Automatically connect spline segments together
+                    // Right now, spline segments often disconnect, requiring fiddling with smooth C & T
+                    this.smoothT[index] = newValue;
+                    // Integral to making the editor work is updating the graphic every time there is a change
+                    curveView.setImage(createSmoothingCurveImageView().getImage());
+                }, 0, this.smoothT[this.smoothT.length - 1]);
+            }
+
+            // Putting this in the middle so you can actually see the preview while editing smooth C
+            editor.addBoldLabel("Smoothing Curve:");
+            editor.addCenteredImageView(curveView);
+
+            editor.addBoldLabel("Smooth C:");
+            for (int i = 0; i < this.smoothC.length; i++) {
+                final int index1 = i;
+                for (int j = 0; j < this.smoothC[i].length; j++) {
+                    final int index2 = j;
+                    int max = 10000000;
+                    String extra = "Curve";
+                    if (index2 == 1) {
+                        extra = "Curve Precision";
+                    } else if (index2 == 2) {
+                        max *= 10;
+                        extra = "End Height";
+                    }
+                    editor.addIntegerSlider("#" + i + ", " + extra, this.smoothC[i][j], newVal -> {
+                        // TODO: Automatically connect spline segments together
+                        // Right now, spline segments often disconnect, requiring fiddling with smooth C & T
+                        this.smoothC[index1][index2] = newVal;
+                        // Integral to making the editor work is updating the graphic every time there is a change
+                        curveView.setImage(createSmoothingCurveImageView().getImage());
+                    }, -max, max);
+                }
+            }
+
+            // Since the editor is still crude, provide the raw string for copy/paste and raw edits
+            editor.addTextField("Raw String", this.smoothTCString(), newString -> {
+                smoothTCConvert(newString);
+                pathPreview.getPathManager().updateEditor();
+                return true;
+            });
+        }
+    }
+
+    // Turn the curve into a string representation
+    private String smoothTCString() {
+        StringBuilder sb = new StringBuilder();
+        final double maxTimeLength = this.smoothT[this.smoothT.length - 1];
+        for (int i = 0; i < this.smoothC.length; i++) {
+            final int index1 = i;
+            sb.append(String.format("%.5f", this.smoothT[index1] / maxTimeLength));
+            sb.append(',');
+            for (int j = 0; j < this.smoothC[i].length; j++) {
+                final int index2 = j;
+                sb.append(this.smoothC[index1][index2]);
+                sb.append(',');
+            }
+        }
+        return sb.toString();
+    }
+
+    // Convert a string back into a curve
+    private boolean smoothTCConvert(String smoothTCString) {
+        String[] splits = smoothTCString.split(",");
+        final double maxTimeLength = this.smoothT[this.smoothT.length - 1];
+        int readIndex = 0;
+        try {
+            for (int i = 0; i < this.smoothC.length; i++) {
+                final int index1 = i;
+                this.smoothT[index1] = (int) Math.round(Double.parseDouble(splits[readIndex]) * maxTimeLength);
+                readIndex++;
+                for (int j = 0; j < this.smoothC[i].length; j++) {
+                    final int index2 = j;
+                    this.smoothC[index1][index2] = (int) Math.round(Double.parseDouble(splits[readIndex]));
+                    readIndex++;
+                }
+            }
+        } catch (Throwable th) {
+            Utils.handleError(null, th, true, "The provided value '%s' was not valid.", smoothTCString);
+            return false;
+        }
+        return true;
     }
 
     @SuppressWarnings("unused")
@@ -315,6 +412,8 @@ public class FroggerPathSegmentSpline extends FroggerPathSegment {
 
     @Override
     public void onUpdate(FroggerPathPreview pathPreview) {
+        // Hide the advanced view if the curve is automatically calculated again
+        showAdvanced = false;
         recalculateLength(pathPreview);
         calculateSmoothingCurve(); // Call after recalculating the length, but before updating the path preview.
         if (pathPreview != null)
