@@ -19,6 +19,7 @@ import net.highwayfrogs.editor.games.sony.shared.SCByteTextureUV;
 import net.highwayfrogs.editor.games.sony.shared.TextureRemapArray;
 import net.highwayfrogs.editor.games.sony.shared.map.filesync.*;
 import net.highwayfrogs.editor.games.sony.shared.vlo2.VloFile;
+import net.highwayfrogs.editor.utils.FXUtils;
 import net.highwayfrogs.editor.utils.FileUtils;
 import net.highwayfrogs.editor.utils.FileUtils.BrowserFileType;
 import net.highwayfrogs.editor.utils.FileUtils.SavedFilePath;
@@ -215,8 +216,18 @@ public class FFSUtil {
             animation.getTargetPolygons().clear();
         }
 
+        // Frogger Cave Light only works with Gouraud shaded polygons
+        // If we have a cave map, ask to convert the polygons
+        boolean caveFlag = map.getMapTheme() == FroggerMapTheme.CAVE;
+        if (caveFlag) {
+            caveFlag = FXUtils.makePopUpYesNo("Cave Map Conversion", "Would you like to convert all " +
+                    "FT3 and FT4 polygons to GT3 and GT4, respectively? (The Frogger Cave Light does not work with " +
+                    "Flat Shaded polygons.)\n\nOnly say no if you have a specific reason not to.");
+        }
+
         // Load map file.
-        FroggerMapLoadContext context = new FroggerMapLoadContext(map, logger, inputFile.getName());
+        FroggerMapLoadContext context = new FroggerMapLoadContext(map, logger, inputFile.getName(), caveFlag);
+
         try {
             context.executeCommands(commandParser, inputFile);
         } catch (Throwable th) {
@@ -272,9 +283,11 @@ public class FFSUtil {
         private final List<SVector> newVertices = new ArrayList<>();
         private final List<FroggerMapPolygon> newPolygons = new ArrayList<>();
         private final Map<FroggerMapPolygon, Integer> newPolygonGridSquareFlags = new HashMap<>();
+        private final boolean convertFTIntoGT;
 
-        public FroggerMapLoadContext(FroggerMapFile mapFile, ILogger logger, String importedMapFileName) {
+        public FroggerMapLoadContext(FroggerMapFile mapFile, ILogger logger, String importedMapFileName, boolean convert) {
             super(mapFile, logger, importedMapFileName, CURRENT_FORMAT_VERSION);
+            convertFTIntoGT = convert;
         }
 
         @Override
@@ -296,13 +309,13 @@ public class FFSUtil {
     }
 
     private static void commandPolygon(FroggerMapLoadContext context, OptionalArguments args) throws CommandListException {
-        boolean caveFlag = context.getMapFile().getMapTheme() == FroggerMapTheme.CAVE;
+        boolean convertFlag = context.convertFTIntoGT;
         boolean switchFlag = false;
         FroggerMapPolygonType polygonType = args.useNext().getAsEnumOrError(FroggerMapPolygonType.class);
-        if (polygonType == FroggerMapPolygonType.FT3 && caveFlag) {
+        if (polygonType == FroggerMapPolygonType.FT3 && convertFlag) {
             polygonType = FroggerMapPolygonType.GT3;
             switchFlag = true;
-        } else if (polygonType == FroggerMapPolygonType.FT4 && caveFlag) {
+        } else if (polygonType == FroggerMapPolygonType.FT4 && convertFlag) {
             polygonType = FroggerMapPolygonType.GT4;
             switchFlag = true;
         }
@@ -348,7 +361,7 @@ public class FFSUtil {
         int previousColor = -1;
         // Read colors.
         for (int i = 0; i < newPolygon.getColors().length; i++) {
-            if (caveFlag && switchFlag && previousColor != -1) {
+            if (convertFlag && switchFlag && previousColor != -1) {
                 newPolygon.getColors()[i].fromRGB(previousColor);
             } else {
                 previousColor = Integer.parseInt(args.useNext().getAsString(), 16);
