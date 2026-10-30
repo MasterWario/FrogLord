@@ -503,7 +503,9 @@ public class VloFileUIController extends SCFileEditorUIController<SCGameInstance
 
     private static class VloFileEditorComponent extends CollectionEditorComponent<SCGameInstance, VloImage> {
         private final VloFileUIController controller;
-        private final MenuItem addImageItem = new MenuItem("Add Image");
+        private final MenuItem add4BitImageItem = new MenuItem("Add 4-Bit Image");
+        private final MenuItem add8BitImageItem = new MenuItem("Add 8-Bit Image");
+        private final MenuItem add15BitImageItem = new MenuItem("Add 15-Bit Image");
         private final MenuItem addFroggerTextImageItem = new MenuItem("Add Frogger Text Image");
 
         public VloFileEditorComponent(SCGameInstance instance, VloFileUIController controller, boolean padCollectionView) {
@@ -517,8 +519,12 @@ public class VloFileUIController extends SCFileEditorUIController<SCGameInstance
         }
 
         private void extendEditorUI() {
-            addMenuItemToAddButtonLogic(this.addImageItem);
-            this.addImageItem.setOnAction(event -> promptUserAddImage(null));
+            addMenuItemToAddButtonLogic(this.add4BitImageItem);
+            this.add4BitImageItem.setOnAction(event -> promptUserAddImage(PsxImageBitDepth.CLUT4));
+            addMenuItemToAddButtonLogic(this.add8BitImageItem);
+            this.add8BitImageItem.setOnAction(event -> promptUserAddImage(PsxImageBitDepth.CLUT8));
+            addMenuItemToAddButtonLogic(this.add15BitImageItem);
+            this.add15BitImageItem.setOnAction(event -> promptUserAddImage(PsxImageBitDepth.SBGR1555));
 
             // TODO: ADD text menu item if the game is frogger. (Maybe)
 
